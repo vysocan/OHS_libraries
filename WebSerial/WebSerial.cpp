@@ -7,12 +7,10 @@
 
 //#define WEB_DEBUGGING_TO_SERIAL 1
 #ifdef WEB_DEBUGGING_TO_SERIAL 
-#include <NilGSM.h>
-#define Serial GSM                                
-//#include <HardwareSerial.h>
+  #include <NilGSM.h>
+  #define Serial GSM                                
 #endif
-//#include <NilGSM.h>
-//#define Serial GSM 
+
 // both buffers are static global vars in this file. interrupt handlers
 // need to access them
 static web_ring_buffer web_buffer;

@@ -226,9 +226,7 @@ int8_t NilGSM::ATsendCmd(char *what){
   /*
     WS.println(F("~~"));
     WS.print(t_size);
-    for(uint8_t i = 0; i < t_size; i++) {
-     WS.print((char)_ATreply[i]);
-    }
+    for(uint8_t i = 0; i < t_size; i++) { WS.print((char)_ATreply[i]); }
     WS.println();
   */
   //if (t_size < 2) return -11;              // echo not match
@@ -239,6 +237,12 @@ int8_t NilGSM::ATsendCmd(char *what){
 
   if (!ATWaitMsg()) return -21;              // timeout reached
   t_size = read(_ATreply);                 // read serial
+  /*
+    WS.println(F("~~"));
+    WS.print(t_size);
+    for(uint8_t i = 0; i < t_size; i++) { WS.print((char)_ATreply[i]); }
+    WS.println();
+  */
   if (t_size != 2) return -12;             // 'OK' size
   at_tmp = memcmp(AT_OK, _ATreply, t_size);// compare
   if (at_tmp != 0) return -2;              // OK not received

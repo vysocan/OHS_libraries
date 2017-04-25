@@ -22,7 +22,7 @@
 #define AT_send_sms        "AT+CMGS="  // --"+6421494481" followed by message then CTRL-Z then enter
 #define AT_send_sms_reply  "+CMGS:"
 #define AT_CLIP_ON         "AT+CLIP=1" // Set CLI On
-#define AT_CLIP_OFF        "AT+CLIP=1" // Set CLI Off
+#define AT_CLIP_OFF        "AT+CLIP=0" // Set CLI Off
 #define AT_D               "ATD"       // Dial number
 #define AT_H               "ATH"       // Hang up
 

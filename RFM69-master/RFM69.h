@@ -121,6 +121,7 @@ class RFM69 {
     uint8_t readReg(uint8_t addr);
     void writeReg(uint8_t addr, uint8_t val);
     void readAllRegs();
+    uint8_t _powerLevel;
 
   protected:
     static void isr0();
@@ -135,7 +136,7 @@ class RFM69 {
     uint8_t _interruptNum;
     uint8_t _address;
     bool _promiscuousMode;
-    uint8_t _powerLevel;
+    //uint8_t _powerLevel;
     bool _isRFM69HW;
 #if defined (SPCR) && defined (SPSR)
     uint8_t _SPCR;

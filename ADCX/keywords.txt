@@ -1,0 +1,6 @@
+ADCX	KEYWORD1
+read 	KEYWORD2
+setReference 	KEYWORD2
+samplesTaken 	KEYWORD2
+errors	 	KEYWORD2
+adcSampleRaw 	KEYWORD2

@@ -19,12 +19,14 @@
 #define AT_registered      "AT+CREG?"  // --'CR'+CREG: 0,1'CR''CR'OK'CR'
 #define AT_signal_strength "AT+CSQ"    // --'CR'+CSQ: 21,99'CR''CR'OK'CR'
 #define AT_set_sms_to_text "AT+CMGF=1" // --'CR'OK'CR'
+#define AT_set_sms_receive "AT+CNMI=1,2,0,0,0" //
 #define AT_send_sms        "AT+CMGS="  // --"+6421494481" followed by message then CTRL-Z then enter
 #define AT_send_sms_reply  "+CMGS:"
 #define AT_CLIP_ON         "AT+CLIP=1" // Set CLI On
 #define AT_CLIP_OFF        "AT+CLIP=0" // Set CLI Off
 #define AT_D               "ATD"       // Dial number
 #define AT_H               "ATH"       // Hang up
+#define AT_CMT             "+CMT"      // Incoming SMS
 
 extern "C" void USART0_TX_vect(void) __attribute__ ((signal));
 extern "C" void USART0_RX_vect(void) __attribute__ ((signal));
@@ -33,8 +35,8 @@ extern "C" void USART0_UDRE_vect(void) __attribute__ ((signal));
 #include <inttypes.h>
 
 // Define buffer sizes
-#define GSM_USART_RX_BUFFER_SIZE 64
-#define GSM_USART_TX_BUFFER_SIZE 64
+#define GSM_USART_RX_BUFFER_SIZE 128
+#define GSM_USART_TX_BUFFER_SIZE 128
 
 struct gsm_rx_ring_buffer {
     uint8_t buffer[GSM_USART_RX_BUFFER_SIZE];
@@ -80,7 +82,7 @@ class NilGSM : public Print {
     int8_t  ATsendCmdWR(char *what, uint8_t *response);
     int8_t  ATsendCmdWR(char *what, uint8_t *response, uint8_t index);
     int8_t  ATsendSMSBegin(char *number);
-    int8_t  ATsendSMSEnd(char *what, uint8_t send);
+    int8_t  ATsendSMSEnd(char *what);
 
     bool    nilWaitGSMNewMsg();
 

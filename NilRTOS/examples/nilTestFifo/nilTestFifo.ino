@@ -12,7 +12,7 @@
 #include <NilFIFO.h>
 
 // FIFO with ten ints.
-NilFIFO<char*, 10> fifo;
+NilFIFO<int, 10> fifo;
 //------------------------------------------------------------------------------
 // Declare a stack with 64 bytes beyond context switch and interrupt needs.
 NIL_WORKING_AREA(waThread1, 64);
@@ -26,38 +26,13 @@ NIL_THREAD(Thread1, arg) {
     nilThdSleep(400);
     
     // Get a free FIFO slot.
-    char** p = fifo.waitFree(TIME_IMMEDIATE);
+    int* p = fifo.waitFree(TIME_IMMEDIATE);
     
     // Continue if no free space.
     if (p == 0) continue;
     
     // Store count in FIFO.
-    *p = "Adam";
-
-    // Signal idle thread data is availabile.
-    fifo.signalData();
-  }
-}
-//------------------------------------------------------------------------------
-// Declare a stack with 64 bytes beyond context switch and interrupt needs.
-NIL_WORKING_AREA(waThread2, 64);
-
-// Declare thread function for thread 1.
-NIL_THREAD(Thread2, arg) {
-  int n = 0;
-  while (TRUE) {
-
-    // Sleep for 400 ticks (1024 usec per tick).
-    nilThdSleep(200);
-    
-    // Get a free FIFO slot.
-    char** p = fifo.waitFree(TIME_IMMEDIATE);
-    
-    // Continue if no free space.
-    if (p == 0) continue;
-    
-    // Store count in FIFO.
-    *p = "Baron";
+    *p = n++;
 
     // Signal idle thread data is availabile.
     fifo.signalData();
@@ -73,12 +48,11 @@ NIL_THREAD(Thread2, arg) {
  */
 NIL_THREADS_TABLE_BEGIN()
 NIL_THREADS_TABLE_ENTRY(NULL, Thread1, NULL, waThread1, sizeof(waThread1))
-NIL_THREADS_TABLE_ENTRY(NULL, Thread2, NULL, waThread2, sizeof(waThread2))
 NIL_THREADS_TABLE_END()
 //------------------------------------------------------------------------------
 void setup() {
 
-  Serial.begin(57600);
+  Serial.begin(9600);
   
   // start kernel
   nilSysBegin();
@@ -89,13 +63,13 @@ void setup() {
 void loop() {
 
   // Check for data.  Use TIME_IMMEDIATE to prevent sleep in idle thread.
-  char** p = fifo.waitData(TIME_IMMEDIATE);
+  int* p = fifo.waitData(TIME_IMMEDIATE);
   
   // return if no data
   if (!p) return;
   
   // Fetch and print data.
-  char* n = *p;
+  int n = *p;
   Serial.println(n);
   
   // Signal FIFO slot is free.

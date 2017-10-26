@@ -15,7 +15,7 @@
 #endif
 
 // Define buffer sizes
-#define WEB_BUFFER_SIZE 1024
+#define WEB_BUFFER_SIZE 2048
 
 struct web_ring_buffer {
     uint8_t buffer[WEB_BUFFER_SIZE];

@@ -4,12 +4,11 @@
  *
 */
 
-#ifndef NilGSM_h
-#define NilGSM_h
+#ifndef NilGPRS_h
+#define NilGPRS_h
 #include <Arduino.h>
 
 #include <NilRTOS.h>
-#include <WebSerial.h>
 
 #define AT_WAIT            50          // how many delay loops wait for modem response
 #define AT_DELAY           100         // delay in millis for modem response 
@@ -26,10 +25,14 @@
 #define AT_D               "ATD"       // Dial number
 #define AT_H               "ATH"       // Hang up
 #define AT_modem_info      "ATI"       // 
+#define AT_GET_DATA        "AT+HTTPREAD" //
 // Replies
 #define AT_OK              "OK"        // 
 #define AT_CMT_reply       "+CMT"      // Incoming SMS
 #define AT_send_sms_reply  "+CMGS:"    // SMS sent and number
+#define AT_DOWNLOAD        "DOWNLOAD"  // 
+#define AT_HTTPDATA        "AT+HTTPDATA="
+#define AT_DATA_SIZE       "+HTTPREAD:"
 
 extern "C" void USART0_TX_vect(void) __attribute__ ((signal));
 extern "C" void USART0_RX_vect(void) __attribute__ ((signal));
@@ -38,13 +41,14 @@ extern "C" void USART0_UDRE_vect(void) __attribute__ ((signal));
 #include <inttypes.h>
 
 // Define buffer sizes
-#define GSM_USART_RX_BUFFER_SIZE 128
+#define GSM_USART_RX_BUFFER_SIZE 1024
 #define GSM_USART_TX_BUFFER_SIZE 128
+#define DEFAULT_TIMEOUT          5000L
 
 struct gsm_rx_ring_buffer {
-    uint8_t buffer[GSM_USART_RX_BUFFER_SIZE];
-    volatile uint8_t head;
-    volatile uint8_t tail;
+    uint16_t buffer[GSM_USART_RX_BUFFER_SIZE];
+    volatile uint16_t head;
+    volatile uint16_t tail;
 };
 
 struct gsm_tx_ring_buffer {
@@ -57,19 +61,19 @@ struct gsm_tx_ring_buffer {
 #ifdef __cplusplus
 extern "C" {
 #endif
- bool nilWaitGSMNewMsg();
+ bool nilWaitGPRSNewMsg();
 #ifdef __cplusplus
 }
 #endif
 
-class NilGSM : public Print {
+class NilGPRS : public Print {
   private:
     
 
   public:
     //uint8_t _msg;
 
-    NilGSM(gsm_rx_ring_buffer *, gsm_tx_ring_buffer *);
+    NilGPRS(gsm_rx_ring_buffer *, gsm_tx_ring_buffer *);
     void    begin(unsigned long);
     void    flushRX(void);
     uint8_t read(void);
@@ -80,18 +84,28 @@ class NilGSM : public Print {
     
     uint8_t isMsg(void);
 
-    uint8_t ATWaitMsg(uint16_t _wait);
-    int8_t  ATsendCmd(char *what);
-    int8_t  ATsendCmdWR(char *what, uint8_t *response);
-    int8_t  ATsendCmdWR(char *what, uint8_t *response, uint8_t index);
-    int8_t  ATsendSMSBegin(char *number);
-    int8_t  ATsendSMSEnd(char *what);
+    uint8_t WaitMsg(uint16_t _wait);
+    int8_t  sendCmd(char *what);
+    int8_t  sendCmdWR(char *what, uint8_t *response);
+    int8_t  sendCmdWR(char *what, uint8_t *response, uint8_t index);
+    int8_t  sendSMSBegin(char *number);
+    int8_t  sendSMSEnd(char *what);
 
-    bool    nilWaitGSMNewMsg();
+    int8_t  sendQueryWR(char *what, uint8_t *response);
+    int8_t  sendOKQueryWR(char *what, uint8_t *response, uint8_t index);
+    //int8_t  sendData(char *what, uint8_t length = 0, uint16_t timeout = DEFAULT_TIMEOUT);
+    int8_t  sendData(char *what);
+    int8_t  getData(uint8_t *response);
+
+    int8_t  sendATTest();
+    //Result  configureBearer(const char *apn);
+
+
+    bool    nilWaitGPRSNewMsg();
 
 };
 
-extern NilGSM GSM;
+extern NilGPRS GPRS;
 
 #endif
  

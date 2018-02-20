@@ -31,6 +31,7 @@ const int DS1307_ADDRESS = (0XD0 >>1);
 #define RTC_DS1307__OUT         0x07
 
 #define SECONDS_PER_DAY         86400L
+#define SECONDS_IN_CENTURY      (3155760039UL)
 
 ////////////////////////////////////////////////////////////////////////////////
 // utility code, some of this could be exposed in the DateTime API if needed
@@ -62,6 +63,7 @@ static uint32_t time2long(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 DateTime::DateTime (uint32_t t) {
     //Serial.print("t:");
     //Serial.println(t);
+    if (t >= SECONDS_IN_CENTURY) t = 0; // Safety belts
     ss = t % 60;
     t /= 60;
     mm = t % 60;
@@ -141,6 +143,7 @@ uint32_t DateTime::get() const {
 void DateTime::set(uint32_t t) {
     //Serial.print("t:");
     //Serial.println(t);
+    if (t >= SECONDS_IN_CENTURY) t = 0; // Safety belts
     ss = t % 60;
     t /= 60;
     mm = t % 60;
@@ -168,7 +171,7 @@ void DateTime::set(uint32_t t) {
 
 //
 char* DateTime::timestamp() {
-  static char _tmp_itoa[5];
+  char _tmp_itoa[5];
   _tmp_ts[0] = 0;
   
   if (yOff < 10) strcat_P (_tmp_ts, RTC_text_0);
@@ -198,7 +201,7 @@ char* DateTime::timestamp() {
 
 //
 char* DateTime::formatedDateTime() {
-  static char _tmp_itoa[5];
+  char _tmp_itoa[5];
   _tmp_ts[0] = 0;
   
   if (d < 10) strcat_P (_tmp_ts, RTC_text_0);
@@ -230,7 +233,7 @@ char* DateTime::formatedDateTime() {
 
 //
 char* DateTime::formatedUpTime() {
-  static char _tmp_itoa[5];
+  char _tmp_itoa[5];
   _tmp_ts[0] = 0;
   
   uint16_t days = date2days(yOff, m, d);

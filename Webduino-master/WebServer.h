@@ -62,7 +62,7 @@
 #endif
 
 #ifndef WEBDUINO_FAIL_MESSAGE
-#define WEBDUINO_FAIL_MESSAGE "<h1>EPIC FAIL</h1>"
+#define WEBDUINO_FAIL_MESSAGE "<h1>WebServer failed</h1>"
 #endif
 
 #ifndef WEBDUINO_AUTH_REALM
@@ -237,7 +237,7 @@ public:
   //                 const unsigned char *label, bool selected);
 
   void radioButton2(const char *name, uint8_t val,
-                   const unsigned char *label, bool selected);
+                   const unsigned char *label, bool selected, bool enableJS);
 
   // output HTML for a checkbox
   /*
@@ -1364,7 +1364,7 @@ void WebServer::radioButton(const char *name, const unsigned char *val,
 */
 
 void WebServer::radioButton2(const char *name, uint8_t val,
-                            const unsigned char *label, bool selected)
+                            const unsigned char *label, bool selected, bool enableJS = false)
 {
   //outputCheckboxOrRadio(text_radio, name, val, label, selected);
   P(cbPart1a) = "<div class='rc'><input type='radio' name='";
@@ -1375,6 +1375,8 @@ void WebServer::radioButton2(const char *name, uint8_t val,
   P(cbPart4a) = "><label for='";
   P(cbPart4b) = "'>";
   P(cbPart5) = "</label></div>";
+  P(cbJSen) = " onclick=\"en()\"";
+  P(cbJSdis) = " onclick=\"dis()\"";
 
 
   printP(cbPart1a);
@@ -1383,10 +1385,12 @@ void WebServer::radioButton2(const char *name, uint8_t val,
   print(name);print(val);
   printP(cbPart2);
   print(val);
-  if (selected)
-    printP(cbChecked);
-  else
-    printP(cbPart3);
+  if (selected) printP(cbChecked);
+  else          printP(cbPart3);
+  if (enableJS) {
+    if (val) printP(cbJSen);
+    else     printP(cbJSdis);
+  }
   printP(cbPart4a);
   print(name);print(val);
   printP(cbPart4b);

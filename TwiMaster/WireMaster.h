@@ -28,7 +28,7 @@
 #include <inttypes.h>
 #include "Stream.h"
 
-#define BUFFER_LENGTH 32
+#define BUFFER_LENGTH 64
 
 class TwoWireMaster : public Stream
 {

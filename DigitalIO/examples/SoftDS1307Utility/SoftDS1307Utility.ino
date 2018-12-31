@@ -1,7 +1,7 @@
 // Utility sketch to explore DS1307 and demonstrate software I2C Master.
 //
-
-#include <DigitalIO.h>
+#ifdef __AVR__
+#include "DigitalIO.h"
 
 // Set pin numbers for your configuration.
 const uint8_t SDA_PIN = A4;
@@ -48,7 +48,7 @@ void setup(void) {
 #define PgmPrintln(x) Serial.println(F(x))
 //-------------------------------------------------------------------------------
 // Day of week U.S. convention.
-char *Ddd[] = {"Bad", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+const char *Ddd[] = {"Bad", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 //------------------------------------------------------------------------------
 void hexPrint(uint8_t v) {
   Serial.print(v >> 4, HEX);
@@ -168,7 +168,6 @@ void dumpAll(void) {
 }
 //------------------------------------------------------------------------------
 void fillNvRam(void) {
-  uint8_t buf[8];
   PgmPrint("Enter HEX value for all NV RAM locations (00-FF): ");
   uint16_t v;
   if (!hexRead(&v)) return;
@@ -322,3 +321,6 @@ void loop(void) {
     PgmPrintln("Invalid option");
   }
 }
+#else  // __AVR__
+#error AVR only example
+#endif  // __AVR__

@@ -1,5 +1,6 @@
 // Test the config() and toggle() functions.
-#include <DigitalIO.h>
+#ifdef __AVR__
+#include "DigitalIO.h"
 
 // Set runtime pin number.
 PinIO pin13(13);
@@ -10,6 +11,10 @@ void setup() {
 }
 void loop() {
   pin13.toggle();
+  delay(100);
   pin13.toggle();
-  delay(1);
+  delay(400);
 }
+#else  // __AVR__
+#error AVR only example
+#endif  // __AVR__

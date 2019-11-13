@@ -7,8 +7,8 @@
 
 //#define WEB_DEBUGGING_TO_SERIAL 1
 #ifdef WEB_DEBUGGING_TO_SERIAL 
-  #include <NilGSM.h>
-  #define Serial GSM                                
+  #include <NilGPRS_0.h>
+  #define Serial GPRS                                
 #endif
 
 // both buffers are static global vars in this file. interrupt handlers
@@ -77,7 +77,7 @@ size_t WebSerial::write(uint8_t data) {
   }
 
   #ifdef WEB_DEBUGGING_TO_SERIAL 
-  GSM.write(data);
+  GPRS.write(data);
   #endif
 
   return 1;

@@ -18,7 +18,7 @@
 #define MSG_CRC_SIZE 2           // 2 bytes data CRC16
 #define LINE_READY_TIME_OUT 100  // max 255
 // Define buffer sizes
-#define USART_RX_BUFFER_SIZE 256 // must be 256
+#define USART_RX_BUFFER_SIZE (MSG_HEADER_SIZE + MSG_DATA_SIZE + MSG_CRC_SIZE)
 #define USART_TX_BUFFER_SIZE (MSG_HEADER_SIZE + MSG_DATA_SIZE + MSG_CRC_SIZE)
 // Define the amount of tolerance upon which x2 will be enabled, in percent
 #define BAUD_TOL 2

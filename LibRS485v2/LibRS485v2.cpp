@@ -160,9 +160,8 @@ void LibRS485v2::flushRX(void) {
 
 ISR(USART_RX_vect) {
   // full, do not receive anything 
-  if ((rx_buffer.head + 1) == rx_buffer.tail) { 
+  if ((rx_buffer.head + 1) >= USART_TX_BUFFER_SIZE) { 
     UCSR0A |= (1<<MPCM0); // set MPCM
-    rx_buffer.head -= _msg_length; // return head
     return;
   }
   

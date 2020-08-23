@@ -93,7 +93,8 @@ uint8_t NilGPRS_0::read(uint8_t *msg) {
       msg[count] = rb;  
       count++;          // We have at least one byte present
     } 
-  } while (rb != 0x0A); // NL
+  // NL or empty buffer
+  } while ((rb != 0x0A)  && (rx_buffer.tail != rx_buffer.head)) ; // NL
   msg[count] = 0;     // Terminate 
   //WS.println(); // Debug  
   return count;
@@ -198,7 +199,7 @@ void NilGPRS_0::printP(const unsigned char *str) {
 
 //
 uint8_t NilGPRS_0::WaitMsg(uint16_t _wait = AT_WAIT){ 
-  uint8_t _at_wait = 0;
+  uint16_t _at_wait = 0;
 
   while ((!isMsg()) && (_at_wait < _wait)) {
     nilThdSleepMilliseconds(AT_DELAY);

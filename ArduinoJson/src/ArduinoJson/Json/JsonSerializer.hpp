@@ -1,139 +1,137 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
-#include "../Serialization/measure.hpp"
-#include "../Serialization/serialize.hpp"
-#include "./JsonWriter.hpp"
+#include <ArduinoJson/Json/TextFormatter.hpp>
+#include <ArduinoJson/Misc/Visitable.hpp>
+#include <ArduinoJson/Serialization/measure.hpp>
+#include <ArduinoJson/Serialization/serialize.hpp>
 
-namespace ArduinoJson {
-namespace Internals {
+namespace ARDUINOJSON_NAMESPACE {
 
-template <typename TPrint>
-class JsonSerializer {
+template <typename TWriter>
+class JsonSerializer : public Visitor<size_t> {
  public:
-  JsonSerializer(TPrint &destination) : _writer(destination) {}
+  static const bool producesText = true;
 
-  void acceptFloat(JsonFloat value) {
-    _writer.writeFloat(value);
-  }
+  JsonSerializer(TWriter writer) : _formatter(writer) {}
 
-  void acceptArray(const JsonArray &array) {
-    _writer.beginArray();
+  FORCE_INLINE size_t visitArray(const CollectionData &array) {
+    write('[');
 
-    JsonArray::const_iterator it = array.begin();
-    while (it != array.end()) {
-      it->visit(*this);
+    VariantSlot *slot = array.head();
 
-      ++it;
-      if (it == array.end()) break;
+    while (slot != 0) {
+      slot->data()->accept(*this);
 
-      _writer.writeComma();
+      slot = slot->next();
+      if (slot == 0)
+        break;
+
+      write(',');
     }
 
-    _writer.endArray();
+    write(']');
+    return bytesWritten();
   }
 
-  void acceptObject(const JsonObject &object) {
-    _writer.beginObject();
+  size_t visitObject(const CollectionData &object) {
+    write('{');
 
-    JsonObject::const_iterator it = object.begin();
-    while (it != object.end()) {
-      _writer.writeString(it->key);
-      _writer.writeColon();
-      it->value.visit(*this);
+    VariantSlot *slot = object.head();
 
-      ++it;
-      if (it == object.end()) break;
+    while (slot != 0) {
+      _formatter.writeString(slot->key());
+      write(':');
+      slot->data()->accept(*this);
 
-      _writer.writeComma();
+      slot = slot->next();
+      if (slot == 0)
+        break;
+
+      write(',');
     }
 
-    _writer.endObject();
+    write('}');
+    return bytesWritten();
   }
 
-  void acceptString(const char *value) {
-    _writer.writeString(value);
+  size_t visitFloat(Float value) {
+    _formatter.writeFloat(value);
+    return bytesWritten();
   }
 
-  void acceptRawJson(const char *value) {
-    _writer.writeRaw(value);
+  size_t visitString(const char *value) {
+    _formatter.writeString(value);
+    return bytesWritten();
   }
 
-  void acceptNegativeInteger(JsonUInt value) {
-    _writer.writeRaw('-');
-    _writer.writeInteger(value);
+  size_t visitRawJson(const char *data, size_t n) {
+    _formatter.writeRaw(data, n);
+    return bytesWritten();
   }
 
-  void acceptPositiveInteger(JsonUInt value) {
-    _writer.writeInteger(value);
+  size_t visitSignedInteger(Integer value) {
+    _formatter.writeInteger(value);
+    return bytesWritten();
   }
 
-  void acceptBoolean(bool value) {
-    _writer.writeBoolean(value);
+  size_t visitUnsignedInteger(UInt value) {
+    _formatter.writeInteger(value);
+    return bytesWritten();
   }
 
-  void acceptUndefined() {}
+  size_t visitBoolean(bool value) {
+    _formatter.writeBoolean(value);
+    return bytesWritten();
+  }
 
+  size_t visitNull() {
+    _formatter.writeRaw("null");
+    return bytesWritten();
+  }
+
+ protected:
   size_t bytesWritten() const {
-    return _writer.bytesWritten();
+    return _formatter.bytesWritten();
+  }
+
+  void write(char c) {
+    _formatter.writeRaw(c);
+  }
+
+  void write(const char *s) {
+    _formatter.writeRaw(s);
   }
 
  private:
-  JsonWriter<TPrint> _writer;
+  TextFormatter<TWriter> _formatter;
 };
 
-}  // namespace Internals
-
 template <typename TSource, typename TDestination>
-size_t serializeJson(TSource &source, TDestination &destination) {
-  using namespace Internals;
+size_t serializeJson(const TSource &source, TDestination &destination) {
   return serialize<JsonSerializer>(source, destination);
 }
 
 template <typename TSource>
-size_t serializeJson(const TSource &source, char *buffer, size_t bufferSize) {
-  using namespace Internals;
+size_t serializeJson(const TSource &source, void *buffer, size_t bufferSize) {
   return serialize<JsonSerializer>(source, buffer, bufferSize);
 }
 
 template <typename TSource>
 size_t measureJson(const TSource &source) {
-  using namespace Internals;
   return measure<JsonSerializer>(source);
 }
 
 #if ARDUINOJSON_ENABLE_STD_STREAM
-inline std::ostream &operator<<(std::ostream &os, const JsonArray &source) {
+template <typename T>
+inline typename enable_if<IsVisitable<T>::value, std::ostream &>::type
+operator<<(std::ostream &os, const T &source) {
   serializeJson(source, os);
   return os;
 }
-inline std::ostream &operator<<(std::ostream &os, const JsonObject &source) {
-  serializeJson(source, os);
-  return os;
-}
-inline std::ostream &operator<<(std::ostream &os, const JsonVariant &source) {
-  serializeJson(source, os);
-  return os;
-}
-
-namespace Internals {
-inline std::ostream &operator<<(std::ostream &os,
-                                const JsonArraySubscript &source) {
-  serializeJson(source, os);
-  return os;
-}
-
-template <typename TKey>
-inline std::ostream &operator<<(std::ostream &os,
-                                const JsonObjectSubscript<TKey> &source) {
-  serializeJson(source, os);
-  return os;
-}
-}  // namespace Internals
-
 #endif
 
-}  // namespace ArduinoJson
+}  // namespace ARDUINOJSON_NAMESPACE

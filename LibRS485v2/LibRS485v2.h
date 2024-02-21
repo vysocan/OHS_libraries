@@ -12,11 +12,13 @@
 
 #include <util/delay_basic.h>
 
-// Define message parameters
+// Define message sizes
 #define MSG_HEADER_SIZE 3        // 2 bytes and XOR
 #define MSG_DATA_SIZE 64         // 64 bytes
 #define MSG_CRC_SIZE 2           // 2 bytes data CRC16
+// Define timeouts
 #define LINE_READY_TIME_OUT 100  // max 255
+#define ACK_WAIT (MSG_HEADER_SIZE + MSG_DATA_SIZE + MSG_CRC_SIZE + 10) // max 255
 // Define buffer sizes
 #define USART_RX_BUFFER_SIZE (MSG_HEADER_SIZE + MSG_DATA_SIZE + MSG_CRC_SIZE)
 #define USART_TX_BUFFER_SIZE (MSG_HEADER_SIZE + MSG_DATA_SIZE + MSG_CRC_SIZE)
@@ -29,17 +31,19 @@
 #define FLAG_CMD  1
 #define FLAG_DTA  0
 
+/*
+ * Transceiver state machine
+ */
 typedef enum { 
     TRC_UNINIT = 0,
-    TRC_STOP = 1,
-    TRC_READY = 2,
-    TRC_SENDING = 3,
-    TRC_SENDING_WITH_ACK = 4,
-    TRC_WAITING_ACK = 5,
-    TRC_RECEIVING = 6,
-    TRC_ACKING = 7,
-    TRC_RECEIVED = 8,
-    TRC_ACKED = 9 
+    TRC_READY = 1,
+    TRC_SENDING = 2,
+    TRC_SENDING_WITH_ACK = 3,
+    TRC_WAITING_ACK = 4,
+    TRC_RECEIVING = 5,
+    TRC_ACKING = 6,
+    TRC_RECEIVED = 7,
+    TRC_ACKED = 8 
 } rs485transceiver_t;
 
 struct rx_ring_buffer {

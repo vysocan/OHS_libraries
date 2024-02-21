@@ -1,41 +1,42 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
-namespace ArduinoJson {
-namespace Internals {
+#include <ArduinoJson/Namespace.hpp>
+#include <ArduinoJson/Strings/StoragePolicy.hpp>
 
-template <typename TChar>
+namespace ARDUINOJSON_NAMESPACE {
+
 class StringMover {
  public:
-  class String {
-   public:
-    String(TChar** ptr) : _writePtr(ptr), _startPtr(*ptr) {}
+  StringMover(char* ptr) : _writePtr(ptr) {}
 
-    void append(char c) {
-      *(*_writePtr)++ = TChar(c);
-    }
-
-    const char* c_str() const {
-      *(*_writePtr)++ = 0;
-      return reinterpret_cast<const char*>(_startPtr);
-    }
-
-   private:
-    TChar** _writePtr;
-    TChar* _startPtr;
-  };
-
-  StringMover(TChar* buffer) : _ptr(buffer) {}
-
-  String startString() {
-    return String(&_ptr);
+  void startString() {
+    _startPtr = _writePtr;
   }
 
+  const char* save() const {
+    return _startPtr;
+  }
+
+  void append(char c) {
+    *_writePtr++ = c;
+  }
+
+  bool isValid() const {
+    return true;
+  }
+
+  const char* c_str() const {
+    return _startPtr;
+  }
+
+  typedef storage_policies::store_by_address storage_policy;
+
  private:
-  TChar* _ptr;
+  char* _writePtr;
+  char* _startPtr;
 };
-}  // namespace Internals
-}  // namespace ArduinoJson
+}  // namespace ARDUINOJSON_NAMESPACE

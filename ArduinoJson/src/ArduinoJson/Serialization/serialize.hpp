@@ -1,55 +1,54 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
-#include "./DynamicStringBuilder.hpp"
-#include "./StaticStringBuilder.hpp"
+#include <ArduinoJson/Serialization/Writer.hpp>
 
-#if ARDUINOJSON_ENABLE_STD_STREAM
-#include "./StreamPrintAdapter.hpp"
-#endif
-
-namespace ArduinoJson {
-namespace Internals {
+namespace ARDUINOJSON_NAMESPACE {
 
 template <template <typename> class TSerializer, typename TSource,
-          typename TPrint>
-typename enable_if<!StringTraits<TPrint>::has_append, size_t>::type serialize(
-    const TSource &source, TPrint &destination) {
-  TSerializer<TPrint> serializer(destination);
-  source.visit(serializer);
-  return serializer.bytesWritten();
-}
-
-#if ARDUINOJSON_ENABLE_STD_STREAM
-template <template <typename> class TSerializer, typename TSource>
-size_t serialize(const TSource &source, std::ostream &os) {
-  StreamPrintAdapter adapter(os);
-  return serialize<TSerializer>(source, adapter);
-}
-#endif
-
-template <template <typename> class TSerializer, typename TSource>
-size_t serialize(const TSource &source, char *buffer, size_t bufferSize) {
-  StaticStringBuilder sb(buffer, bufferSize);
-  return serialize<TSerializer>(source, sb);
-}
-
-template <template <typename> class TSerializer, typename TSource, size_t N>
-size_t serialize(const TSource &source, char (&buffer)[N]) {
-  StaticStringBuilder sb(buffer, N);
-  return serialize<TSerializer>(source, sb);
+          typename TWriter>
+size_t doSerialize(const TSource &source, TWriter writer) {
+  TSerializer<TWriter> serializer(writer);
+  return source.accept(serializer);
 }
 
 template <template <typename> class TSerializer, typename TSource,
-          typename TString>
-typename enable_if<StringTraits<TString>::has_append, size_t>::type serialize(
-    const TSource &source, TString &str) {
-  DynamicStringBuilder<TString> sb(str);
-  return serialize<TSerializer>(source, sb);
+          typename TDestination>
+size_t serialize(const TSource &source, TDestination &destination) {
+  Writer<TDestination> writer(destination);
+  return doSerialize<TSerializer>(source, writer);
 }
 
-}  // namespace Internals
-}  // namespace ArduinoJson
+template <template <typename> class TSerializer, typename TSource>
+typename enable_if<!TSerializer<StaticStringWriter>::producesText, size_t>::type
+serialize(const TSource &source, void *buffer, size_t bufferSize) {
+  StaticStringWriter writer(reinterpret_cast<char *>(buffer), bufferSize);
+  return doSerialize<TSerializer>(source, writer);
+}
+
+template <template <typename> class TSerializer, typename TSource>
+typename enable_if<TSerializer<StaticStringWriter>::producesText, size_t>::type
+serialize(const TSource &source, void *buffer, size_t bufferSize) {
+  StaticStringWriter writer(reinterpret_cast<char *>(buffer), bufferSize);
+  size_t n = doSerialize<TSerializer>(source, writer);
+  // add null-terminator for text output (not counted in the size)
+  if (n < bufferSize)
+    reinterpret_cast<char *>(buffer)[n] = 0;
+  return n;
+}
+
+template <template <typename> class TSerializer, typename TSource,
+          typename TChar, size_t N>
+#if defined _MSC_VER && _MSC_VER < 1900
+typename enable_if<sizeof(remove_reference<TChar>::type) == 1, size_t>::type
+#else
+typename enable_if<sizeof(TChar) == 1, size_t>::type
+#endif
+serialize(const TSource &source, TChar (&buffer)[N]) {
+  return serialize<TSerializer>(source, buffer, N);
+}
+
+}  // namespace ARDUINOJSON_NAMESPACE

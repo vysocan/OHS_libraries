@@ -1,67 +1,106 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
+#include <ArduinoJson/Namespace.hpp>
+#include <ArduinoJson/Polyfills/preprocessor.hpp>
+#include <ArduinoJson/Polyfills/static_array.hpp>
+
 #if ARDUINOJSON_ENABLE_STD_STREAM
-#include <ostream>
+#  include <ostream>
 #endif
 
-namespace ArduinoJson {
+namespace ARDUINOJSON_NAMESPACE {
 
 class DeserializationError {
+  // safe bool idiom
+  typedef void (DeserializationError::*bool_type)() const;
+  void safeBoolHelper() const {}
+
  public:
   enum Code {
     Ok,
+    EmptyInput,
     IncompleteInput,
     InvalidInput,
     NoMemory,
-    NotSupported,
     TooDeep
   };
 
   DeserializationError() {}
-  DeserializationError(Code code) : _code(code) {}
+  DeserializationError(Code c) : _code(c) {}
 
-  friend bool operator==(const DeserializationError& err, Code code) {
-    return err._code == code;
+  // Compare with DeserializationError
+  friend bool operator==(const DeserializationError& lhs,
+                         const DeserializationError& rhs) {
+    return lhs._code == rhs._code;
+  }
+  friend bool operator!=(const DeserializationError& lhs,
+                         const DeserializationError& rhs) {
+    return lhs._code != rhs._code;
   }
 
-  friend bool operator==(Code code, const DeserializationError& err) {
-    return err._code == code;
+  // Compare with Code
+  friend bool operator==(const DeserializationError& lhs, Code rhs) {
+    return lhs._code == rhs;
+  }
+  friend bool operator==(Code lhs, const DeserializationError& rhs) {
+    return lhs == rhs._code;
+  }
+  friend bool operator!=(const DeserializationError& lhs, Code rhs) {
+    return lhs._code != rhs;
+  }
+  friend bool operator!=(Code lhs, const DeserializationError& rhs) {
+    return lhs != rhs._code;
   }
 
-  friend bool operator!=(const DeserializationError& err, Code code) {
-    return err._code != code;
+  // Behaves like a bool
+  operator bool_type() const {
+    return _code != Ok ? &DeserializationError::safeBoolHelper : 0;
+  }
+  friend bool operator==(bool value, const DeserializationError& err) {
+    return static_cast<bool>(err) == value;
+  }
+  friend bool operator==(const DeserializationError& err, bool value) {
+    return static_cast<bool>(err) == value;
+  }
+  friend bool operator!=(bool value, const DeserializationError& err) {
+    return static_cast<bool>(err) != value;
+  }
+  friend bool operator!=(const DeserializationError& err, bool value) {
+    return static_cast<bool>(err) != value;
   }
 
-  friend bool operator!=(Code code, const DeserializationError& err) {
-    return err._code != code;
-  }
-
-  operator bool() const {
-    return _code != Ok;
+  // Returns internal enum, useful for switch statement
+  Code code() const {
+    return _code;
   }
 
   const char* c_str() const {
-    switch (_code) {
-      case Ok:
-        return "Ok";
-      case TooDeep:
-        return "TooDeep";
-      case NoMemory:
-        return "NoMemory";
-      case InvalidInput:
-        return "InvalidInput";
-      case IncompleteInput:
-        return "IncompleteInput";
-      case NotSupported:
-        return "NotSupported";
-      default:
-        return "???";
-    }
+    static const char* messages[] = {
+        "Ok",           "EmptyInput", "IncompleteInput",
+        "InvalidInput", "NoMemory",   "TooDeep"};
+    ARDUINOJSON_ASSERT(static_cast<size_t>(_code) <
+                       sizeof(messages) / sizeof(messages[0]));
+    return messages[_code];
   }
+
+#if ARDUINOJSON_ENABLE_PROGMEM
+  const __FlashStringHelper* f_str() const {
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s0, "Ok");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s1, "EmptyInput");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s2, "IncompleteInput");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s3, "InvalidInput");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s4, "NoMemory");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(char, s5, "TooDeep");
+    ARDUINOJSON_DEFINE_STATIC_ARRAY(
+        const char*, messages, ARDUINOJSON_EXPAND6({s0, s1, s2, s3, s4, s5}));
+    return ARDUINOJSON_READ_STATIC_ARRAY(const __FlashStringHelper*, messages,
+                                         _code);
+  }
+#endif
 
  private:
   Code _code;
@@ -80,4 +119,4 @@ inline std::ostream& operator<<(std::ostream& s, DeserializationError::Code c) {
 }
 #endif
 
-}  // namespace ArduinoJson
+}  // namespace ARDUINOJSON_NAMESPACE

@@ -1,11 +1,12 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
-namespace ArduinoJson {
-namespace Internals {
+#include <ArduinoJson/Namespace.hpp>
+
+namespace ARDUINOJSON_NAMESPACE {
 
 // A meta-function that returns true if Derived inherits from TBase is an
 // integral type.
@@ -19,9 +20,7 @@ class is_base_of {
   static No &probe(...);
 
  public:
-  enum {
-    value = sizeof(probe(reinterpret_cast<TDerived *>(0))) == sizeof(Yes)
-  };
+  static const bool value =
+      sizeof(probe(reinterpret_cast<TDerived *>(0))) == sizeof(Yes);
 };
-}  // namespace Internals
-}  // namespace ArduinoJson
+}  // namespace ARDUINOJSON_NAMESPACE

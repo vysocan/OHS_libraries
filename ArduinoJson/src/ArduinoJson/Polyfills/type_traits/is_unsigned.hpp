@@ -1,38 +1,28 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
 #include "integral_constant.hpp"
-namespace ArduinoJson {
-namespace Internals {
+#include "is_same.hpp"
+#include "remove_cv.hpp"
 
-template <typename>
-struct is_unsigned : false_type {};
+namespace ARDUINOJSON_NAMESPACE {
 
-template <>
-struct is_unsigned<bool> : true_type {};
-
-template <>
-struct is_unsigned<unsigned char> : true_type {};
-
-template <>
-struct is_unsigned<unsigned short> : true_type {};
-
-template <>
-struct is_unsigned<unsigned int> : true_type {};
-
-template <>
-struct is_unsigned<unsigned long> : true_type {};
-
-#if ARDUINOJSON_USE_LONG_LONG
-template <>
-struct is_unsigned<unsigned long long> : true_type {};
+// clang-format off
+template <typename T>
+struct is_unsigned : integral_constant<bool,
+    is_same<typename remove_cv<T>::type, unsigned char>::value ||
+    is_same<typename remove_cv<T>::type, unsigned short>::value ||
+    is_same<typename remove_cv<T>::type, unsigned int>::value ||
+    is_same<typename remove_cv<T>::type, unsigned long>::value ||
+#if ARDUINOJSON_HAS_INT64
+    is_same<typename remove_cv<T>::type, unsigned __int64>::value ||
 #endif
-#if ARDUINOJSON_USE_INT64
-template <>
-struct is_unsigned<unsigned __int64> : true_type {};
+#if ARDUINOJSON_HAS_LONG_LONG
+    is_same<typename remove_cv<T>::type, unsigned long long>::value ||
 #endif
-}  // namespace Internals
-}  // namespace ArduinoJson
+    is_same<typename remove_cv<T>::type, bool>::value> {};
+// clang-format on
+}  // namespace ARDUINOJSON_NAMESPACE

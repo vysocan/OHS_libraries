@@ -1,11 +1,11 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 //
 // This example shows how to parse a JSON document in an HTTP response.
 // It uses the Ethernet library, but can be easily adapted for Wifi.
 //
-// It performs a GET resquest on arduinojson.org/example.json
+// It performs a GET resquest on https://arduinojson.org/example.json
 // Here is the expected response:
 // {
 //   "sensor": "gps",
@@ -15,6 +15,8 @@
 //     2.302038
 //   ]
 // }
+//
+// https://arduinojson.org/v6/example/http-client/
 
 #include <ArduinoJson.h>
 #include <Ethernet.h>
@@ -51,15 +53,18 @@ void setup() {
   client.println(F("Connection: close"));
   if (client.println() == 0) {
     Serial.println(F("Failed to send request"));
+    client.stop();
     return;
   }
 
   // Check HTTP status
   char status[32] = {0};
   client.readBytesUntil('\r', status, sizeof(status));
-  if (strcmp(status, "HTTP/1.1 200 OK") != 0) {
+  // It should be "HTTP/1.0 200 OK" or "HTTP/1.1 200 OK"
+  if (strcmp(status + 9, "200 OK") != 0) {
     Serial.print(F("Unexpected response: "));
     Serial.println(status);
+    client.stop();
     return;
   }
 
@@ -67,11 +72,12 @@ void setup() {
   char endOfHeaders[] = "\r\n\r\n";
   if (!client.find(endOfHeaders)) {
     Serial.println(F("Invalid response"));
+    client.stop();
     return;
   }
 
   // Allocate the JSON document
-  // Use arduinojson.org/assistant to compute the capacity.
+  // Use https://arduinojson.org/v6/assistant to compute the capacity.
   const size_t capacity = JSON_OBJECT_SIZE(3) + JSON_ARRAY_SIZE(2) + 60;
   DynamicJsonDocument doc(capacity);
 
@@ -79,17 +85,17 @@ void setup() {
   DeserializationError error = deserializeJson(doc, client);
   if (error) {
     Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
+    Serial.println(error.f_str());
+    client.stop();
     return;
   }
 
   // Extract values
-  JsonObject& root = doc.as<JsonObject>();
   Serial.println(F("Response:"));
-  Serial.println(root["sensor"].as<char*>());
-  Serial.println(root["time"].as<char*>());
-  Serial.println(root["data"][0].as<char*>());
-  Serial.println(root["data"][1].as<char*>());
+  Serial.println(doc["sensor"].as<const char*>());
+  Serial.println(doc["time"].as<long>());
+  Serial.println(doc["data"][0].as<float>(), 6);
+  Serial.println(doc["data"][1].as<float>(), 6);
 
   // Disconnect
   client.stop();
@@ -99,16 +105,22 @@ void loop() {
   // not used in this example
 }
 
+// Performance issue?
+// ------------------
+//
+// EthernetClient is an unbuffered stream, which is not optimal for ArduinoJson.
+// See: https://arduinojson.org/v6/how-to/improve-speed/
+
 // See also
 // --------
 //
-// The website arduinojson.org contains the documentation for all the functions
+// https://arduinojson.org/ contains the documentation for all the functions
 // used above. It also includes an FAQ that will help you solve any
 // serialization  problem.
-// Please check it out at: https://arduinojson.org/
 //
 // The book "Mastering ArduinoJson" contains a tutorial on deserialization
-// showing how to parse the response from Yahoo Weather. In the last chapter,
+// showing how to parse the response from GitHub's API. In the last chapter,
 // it shows how to parse the huge documents from OpenWeatherMap
-// and Weather Underground.
-// Please check it out at: https://arduinojson.org/book/
+// and Reddit.
+// Learn more at https://arduinojson.org/book/
+// Use the coupon code TWENTY for a 20% discount ❤❤❤❤❤

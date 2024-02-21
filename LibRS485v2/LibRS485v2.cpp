@@ -1,32 +1,35 @@
 /**
- * RS485 protocol library
+ * RS485 multi-master communication protocol library
+ * *************************************************
  * Adam Baron - vysocan(c) 2011
- * Adam Baron - vysocan(c) 2019
+ * Adam Baron - vysocan(c) 2019 - 2021
  * 
  * For Atmega168, 328
  *
- * 1.0 
- * Adjustments for ACK/NACK and STM32 
+ * Varsions: 
+ * 1.1 - Cleanup and flow improvements
  * 
- * 0.9 Beta  
+ * 1.0 - Adjustments for ACK/NACK and STM32 
+ * 
+ * 0.9 Beta -
  * Tested on two breadboards, sending read data or commands looks fine. 
  * Sending junk random data looks fine. One of many is picked up as general
- * command. I guess when the random 2 bytes matches the xor. No random data is
- * pushed through 2 byte crc.         
+ * command. I guess when the random 2 bytes matches the random xor.
+ * No random data is pushed through 2 byte crc.
  *  
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * 
  * Packet structure: 
- * *************~~~~~~~~~~~~~~~~~~
- * * A * P * X *  D0 ~ D63 C0 ~ C1 
- * *************~~~~~~~~~~~~~~~~~~
+ * *************~~~~~~~~~~~~~~~~~~~~
+ * * A + P + X *  D0 ~ D63 + C0 + C1 
+ * *************~~~~~~~~~~~~~~~~~~~~
  * 
  * * Required fields
  * ~ Data and signature fields
- * A Address - 4 bits form and 4 bits to address.
- *   0  is master
- *   15 is broadcast to all
- *   14 addresses left for other devices
+ * A Address - 4 bits from and 4 bits to address.
+ *   0  is master, but we use multi-master communication
+ *   15 is broadcast to all nodes
+ *   14 addresses left for other nodes
  * 
  * P Packet definition - 2 bits type and 6 bits length.
  *   Flag bit configuration:
@@ -35,15 +38,15 @@
  *   FLAG_CMD 1
  *   FLAG_DTA 0
  *    
- *   Types: CMD - Command - user defined general commands value 0 - 63
+ *   Types: CMD - Command - user defined general commands value 1 - 63
  *          DTA - Data - user data length D0 - D63 and CRC S0, S1
  *          ACK, NACK - flags for data, using signature of data packet
  *          
  * X XOR of A and P, for basic transfer safety.
  * 
- * D0 - D63 user data.     
+ * D0 ~ D63 user data.     
  *                      
- * C0 ~ C1  CRC for user data or signature for ACK, NAK.  
+ * C0 + C1  CRC for user data or signature for ACK, NAK.  
  * 
  *
  * Application notes:
@@ -89,14 +92,16 @@ LibRS485v2::LibRS485v2(){
  *    
  */
 void LibRS485v2::begin(unsigned long baud, uint8_t address) {
-    set_output(PORTD, 3);   // Assign WriteEnable as output
-    output_low(PORTD, 3);   // Disable WriteEnable on RS485 chip   
-    _address = address;     // Assign address
+    set_output(PORTD, 3);  // Assign WriteEnable as output
+    output_low(PORTD, 3);  // Disable WriteEnable on RS485 chip   
+    set_input(PORTD, 0);   // Set RX as input
+    output_high(PORTD, 0); // Pull RX high, help significatly to prevent noise on RX
+    
+    // Assign address
+    _address = address;    
     // Tick usec, 11 bits for one byte, _delay_loop_2 executes four CPU cycles
-    // per iteration. The maximal possible delay is 262.14 ms / F_CPU in MHz (16 or 8).
-    _tick = (F_CPU * 11) / (4 * baud);  
-    // Microsecond delay for one character, 11 bits 
-    //tick = 11000000 / baud;
+    // per iteration. The maximal possible delay is 262.14 ms / F_CPU in Hz (16M or 8M).
+    _tick = (F_CPU * 11) / (4 * baud);
     
     // taken from <util/setbaud.h>
     uint8_t use2x = 0;
@@ -117,8 +122,10 @@ void LibRS485v2::begin(unsigned long baud, uint8_t address) {
     // Flush buffers
     tx_buffer.head = 0;
     tx_buffer.tail = 0;
+    memset(tx_buffer.buffer, 0, USART_TX_BUFFER_SIZE);
     rx_buffer.head = 0;
     rx_buffer.tail = 0;
+    memset(rx_buffer.buffer, 0, USART_RX_BUFFER_SIZE);
     _state = TRC_READY;
         
     UCSR0A |= (1<<MPCM0);  // Set MPCM
@@ -155,9 +162,12 @@ void LibRS485v2::flushRX(void) {
   rx_buffer.head = 0;
   rx_buffer.tail = 0;
   _state = TRC_READY;
-  UCSR0A |= (1<<MPCM0); // set MPCM
+  memset(rx_buffer.buffer, 0, USART_RX_BUFFER_SIZE);
+   UCSR0A |= (1<<MPCM0); // set MPCM
 }
-
+/*
+ * Receive vector
+ */
 ISR(USART_RX_vect) {
   // full, do not receive anything 
   if ((rx_buffer.head + 1) >= USART_TX_BUFFER_SIZE) { 
@@ -168,7 +178,7 @@ ISR(USART_RX_vect) {
   uint8_t status = UCSR0A; // Get status and 9th bit, then data from buffer
   uint8_t datah  = UCSR0B; 
   uint8_t datal  = UDR0;
-  uint8_t _tmp, _tmp1;
+  uint8_t _tmp;
   
   /* If error, return -1 */
   //if ( status & (1<<FE0)|(1<<DOR0)) output_high(PORTB, 5);
@@ -186,7 +196,7 @@ ISR(USART_RX_vect) {
       _state = TRC_READY;
       return; // escape  
     } else {
-      _tmp = datal & 0b1111; //* _tmp = datal & 0b00001111;
+      _tmp = datal & 0b1111; // Filter address
       // Our address or broadcast, we start receiveing data
       if ((_tmp == _address) || (_tmp == 15)) {
         UCSR0A &= ~(1<<MPCM0); // clear MPCM
@@ -208,7 +218,8 @@ ISR(USART_RX_vect) {
       }
     }
     if (_msg_length == 3) { // XOR check
-      if ((rx_buffer.buffer[(uint8_t)(rx_buffer.head-2)] ^ rx_buffer.buffer[(uint8_t)(rx_buffer.head-1)]) != datal) { // error
+      if ((rx_buffer.buffer[(uint8_t)(rx_buffer.head-2)] ^ rx_buffer.buffer[(uint8_t)(rx_buffer.head-1)]) != datal) {
+        // XOR error  
         UCSR0A |= (1<<MPCM0); // set MPCM
         rx_buffer.head = 0;
         rx_buffer.tail = 0; // Flush RX
@@ -220,13 +231,13 @@ ISR(USART_RX_vect) {
   
   rx_buffer.buffer[rx_buffer.head++] = datal;  // save byte, advance head 
   
-  if (_msg_length == MSG_HEADER_SIZE + _data_length) { // we have complete message
+  if (_msg_length == (MSG_HEADER_SIZE + _data_length)) { // we have complete message
     UCSR0A |= (1<<MPCM0); // set MPCM
     // Receiving new packet
     if (_state == TRC_RECEIVING) {
       // If ACK requested, and length not 0
       if ((((rx_buffer.buffer[1] >> 7) & 0b1) == FLAG_ACK) &&
-        ((rx_buffer.buffer[1] & 0b111111) != 0)) {
+          ((rx_buffer.buffer[1] & 0b111111) != 0)) {
         tx_buffer.tail = 0;
         tx_buffer.head = 3;
         // Write header
@@ -254,10 +265,8 @@ ISR(USART_RX_vect) {
     }
     if (_state == TRC_WAITING_ACK) {
       _state = TRC_ACKED;
-      //output_low(PORTC, 3);
     }
-  }
-         
+  }         
 }
 
 /**
@@ -275,8 +284,8 @@ int8_t LibRS485v2::readMsg(RS485_msg *msg) {
   msg->address     = tmp_head >> 4;  // from address
 
   tmp_head = read();
-  msg->ack         = (tmp_head >> 7) & 0b1;
-  msg->ctrl        = (tmp_head >> 6) & 0b1;
+  msg->ack  = (tmp_head >> 7) & 0b1;
+  msg->ctrl = (tmp_head >> 6) & 0b1;
   msg->data_length = tmp_head & 0b111111;
 
   // compare XOR of header is done in interrupt
@@ -294,9 +303,7 @@ int8_t LibRS485v2::readMsg(RS485_msg *msg) {
   }
  
   // Flush RX
-  rx_buffer.head = 0;
-  rx_buffer.tail = 0;
-  _state = TRC_READY;
+  flushRX();
  
   // Compare data CRC and computed CRC
   if ((msg->ctrl == FLAG_DTA) && (msg->data_length > 0) && (tmp_crc != msg->crc)) return -1; // CRC not valid
@@ -349,8 +356,10 @@ int8_t LibRS485v2::msg_write(RS485_msg *msg) {
   
   uint8_t tmp_head1, tmp_head2;
 
+  // Null buffer head and tail, clear tx_buffer
   tx_buffer.head = 0;
-  tx_buffer.tail = 0; // Null buffer head and tail 
+  tx_buffer.tail = 0; 
+  memset(tx_buffer.buffer, 0, USART_TX_BUFFER_SIZE);
     
   // Write header
   tmp_head1 = _address << 4;               // Our address
@@ -389,10 +398,10 @@ int8_t LibRS485v2::msg_write(RS485_msg *msg) {
   tmp_head1 = 0;
   do {
     tmp_head2 = UDR0;        //just empty rx buffer 
-    //_delay_loop_2(_tick * ((random() % 15) + 1)); // random time, max is 15 nodes
-    _delay_loop_2(_tick * (_address + 2)); // my address as time, max is 15 nodes
+    //_delay_loop_2(_tick * ((rand() % 15) + 1)); // random time, max is 15 nodes
+    _delay_loop_2(_tick * (_address + 1)); // my address as time, max is 15 nodes
     tmp_head1++;
-    if ( tmp_head1 == LINE_READY_TIME_OUT) {
+    if (tmp_head1 == LINE_READY_TIME_OUT) {
       tx_buffer.head = 0;
       tx_buffer.tail = 0; // Null buffer head and tail
       UCSR0A |= (1<<MPCM0);  // Enable MPCM
@@ -411,11 +420,8 @@ int8_t LibRS485v2::msg_write(RS485_msg *msg) {
   UCSR0B |= (1<<UDRIE0);  // Enable Data Register Empty interrupt, start transmitting
   UCSR0B |= (1<<TXCIE0);  // Enable Transmit Complete interrupt (USART_TXC) 
   
-  if (msg->ack == FLAG_ACK) {
-    _state = TRC_SENDING_WITH_ACK;
-    //output_high(PORTC, 3);
-  }
-  else _state = TRC_SENDING;
+  if (msg->ack == FLAG_ACK) _state = TRC_SENDING_WITH_ACK;
+  else                      _state = TRC_SENDING;
   
   return 1;
 }
@@ -434,40 +440,47 @@ int8_t LibRS485v2::sendMsgWithAck(RS485_msg *msg, uint8_t repeat = 5){
   // Force ACK
   msg->ack = FLAG_ACK;
   
-  do {
-    resp = msg_write(msg);
-    if (resp == -1) return -1; // Cannot send while receiving
+  do {    
+    resp = msg_write(msg); // 0 = transmitter is busy;  -2 = line is busy
+    if (resp == -1) return -1; // -1 = cannot send while receiving 
     if (resp == 1) {
-      //output_high(PORTC, 5);
       _count_ack = 0;
-      do {
-        _delay_loop_2(_tick); // delay 1 character 
+      do {        
+        _delay_loop_2(_tick); // delay 1 character         
         if ((_state == TRC_ACKED) &&
           (msg->ctrl == ((rx_buffer.buffer[1] >> 6) & 0b1)) && 
           (msg->ack  == ((rx_buffer.buffer[1] >> 7) & 0b1)) &&
-          ((rx_buffer.buffer[1] & 0b111111) == 0)
-          ){
+          ((rx_buffer.buffer[1] & 0b111111) == 0)) {
             // Data or CMD
             if (((rx_buffer.buffer[1] >> 6) & 0b1) == FLAG_DTA) {
               // For data check also CRC
               if ((uint16_t)((rx_buffer.buffer[3] << 8) | (rx_buffer.buffer[4])) == msg->crc) {
                 flushRX();
-                //output_low(PORTC, 5);
                 return 1;
               }
             } else {
               flushRX();
-              //output_low(PORTC, 5);
               return 1;
             }
           }
         _count_ack++;
-      } while (_count_ack < USART_TX_BUFFER_SIZE);
-      //output_low(PORTC, 5);
+      } while (_count_ack < ACK_WAIT);
+      /* Copy in case of error
+      msg->buffer[0] = tx_buffer.buffer[0];
+      msg->buffer[1] = tx_buffer.buffer[1];
+      msg->buffer[2] = tx_buffer.buffer[2];
+      msg->buffer[3] = tx_buffer.buffer[3];
+      msg->buffer[4] = tx_buffer.buffer[4];
+      msg->buffer[5] = rx_buffer.buffer[0];
+      msg->buffer[6] = rx_buffer.buffer[1];
+      msg->buffer[7] = rx_buffer.buffer[2];
+      msg->buffer[8] = rx_buffer.buffer[3];
+      msg->buffer[9] = rx_buffer.buffer[4];
+      */
       flushRX();
     }
     _count_send++;
-  } while (_count_send < repeat);
+  } while (_count_send < repeat);  
   return 0; // Send failed
 }
 

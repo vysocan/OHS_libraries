@@ -1,44 +1,23 @@
-// ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// ArduinoJson - https://arduinojson.org
+// Copyright Benoit Blanchon 2014-2021
 // MIT License
 
 #pragma once
 
-#include "./StringCopier.hpp"
-#include "./StringMover.hpp"
+#include <ArduinoJson/StringStorage/StringCopier.hpp>
+#include <ArduinoJson/StringStorage/StringMover.hpp>
 
-namespace ArduinoJson {
-namespace Internals {
+namespace ARDUINOJSON_NAMESPACE {
 
-template <typename TJsonBuffer, typename TInput, typename Enable = void>
-struct StringStorage {
-  typedef StringCopier<TJsonBuffer> type;
-
-  static type create(TJsonBuffer& jb, TInput&) {
-    return type(jb);
-  }
-};
-
-template <typename TJsonBuffer, typename TChar>
-struct StringStorage<TJsonBuffer, TChar*,
-                     typename enable_if<!is_const<TChar>::value>::type> {
-  typedef StringMover<TChar> type;
-
-  static type create(TJsonBuffer&, TChar* input) {
-    return type(input);
-  }
-};
-
-template <typename TJsonBuffer, typename TInput>
-typename StringStorage<TJsonBuffer, TInput>::type makeStringStorage(
-    TJsonBuffer& jb, TInput& input) {
-  return StringStorage<TJsonBuffer, TInput>::create(jb, input);
+template <typename TInput>
+StringCopier makeStringStorage(TInput&, MemoryPool& pool) {
+  return StringCopier(pool);
 }
 
-template <typename TJsonBuffer, typename TChar>
-typename StringStorage<TJsonBuffer, TChar*>::type makeStringStorage(
-    TJsonBuffer& jb, TChar* input) {
-  return StringStorage<TJsonBuffer, TChar*>::create(jb, input);
+template <typename TChar>
+StringMover makeStringStorage(
+    TChar* input, MemoryPool&,
+    typename enable_if<!is_const<TChar>::value>::type* = 0) {
+  return StringMover(reinterpret_cast<char*>(input));
 }
-}  // namespace Internals
-}  // namespace ArduinoJson
+}  // namespace ARDUINOJSON_NAMESPACE
